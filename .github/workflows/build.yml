@@ -1,4 +1,4 @@
-name: Build VPN APK
+name: Build Android APK
 on: [push, workflow_dispatch]
 
 jobs:
@@ -22,23 +22,39 @@ jobs:
       - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip setuptools wheel
-          # Ставим стабильную версию cython, которая не будет сыпать предупреждениями и не вызовет вылет
           pip install buildozer cython==0.29.36 virtualenv
 
-      - name: Create Buildozer Configuration
+      - name: Create Clean Buildozer Spec
         run: |
-          buildozer init
-          # Настройка базовых параметров приложения
-          sed -i 's/^title = .*/title = Cash VPN/' buildozer.spec
-          sed -i 's/^package.name = .*/package.name = cashvpn/' buildozer.spec
-          sed -i 's/^requirements = .*/requirements = python3,kivy==2.3.0,requests,urllib3,chardet,idna,certifi/' buildozer.spec
-          sed -i 's/# android.permissions = .*/android.permissions = INTERNET/' buildozer.spec
-          sed -i 's/#android.manifest.application_arguments =.*/android.manifest.application_arguments = android:usesCleartextTraffic="true"/' buildozer.spec
-          
-          # Задаем жесткие стабильные версии Android API и NDK, чтобы компиляция прошла успешно
-          sed -i 's/^android.api = .*/android.api = 33/' buildozer.spec
-          sed -i 's/# android.ndk = .*/android.ndk = 25b/' buildozer.spec
-          sed -i 's/# android.ndk_api = .*/android.ndk_api = 21/' buildozer.spec
+          rm -f buildozer.spec
+          cat << 'EOF' > buildozer.spec
+          [app]
+          title = Cash VPN
+          package.name = cashvpn
+          package.domain = org.test
+          source.dir = .
+          source.include_exts = py,png,jpg,kv,atlas
+          version = 0.1
+          requirements = python3,kivy==2.3.0,requests,urllib3,chardet,idna,certifi
+          orientation = portrait
+          fullscreen = 0
+
+          # Android settings
+          android.permissions = INTERNET
+          android.api = 33
+          android.minapi = 21
+          android.ndk_api = 21
+          android.private_storage = True
+          android.manifest.application_arguments = android:usesCleartextTraffic="true"
+          android.archs = arm64-v8a, armeabi-v7a
+
+          # КРИТИЧЕСКИЙ ФИКС ДЛЯ AMNEZIA И REQUESTS: фиксируем стабильную ветку p4a
+          p4a.branch = release-2024.01.21
+
+          [buildozer]
+          log_level = 2
+          warn_on_root = 0
+          EOF
 
       - name: Build Android APK
         run: |
